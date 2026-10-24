@@ -1,0 +1,61 @@
+
+name: Build Nova Hub APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Verify HTML File
+        run: |
+          test -s www/index.html || {
+            echo "ERROR: www/index.html is missing or empty"
+            exit 1
+          }
+          grep -qi '<html' www/index.html || {
+            echo "ERROR: Invalid HTML file"
+            exit 1
+          }
+
+      - name: Initialize Capacitor
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/android
+          npm install --save-dev @capacitor/cli
+          npx cap init "Nova Hub" "com.novahub.app" --web-dir www
+          npx cap add android
+          npx cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Nova Hub APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nova-Hub-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
